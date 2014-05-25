@@ -14,6 +14,10 @@ public:
 	void set_output_type(int type);
 	void set_output_filename(char *filename);
 	void clear_data();
+	string get_url_string();
+	string get_dict_string();
+	string get_output_filename();
+	int get_output_type();
 protected:
 private:
 	vector<string> string_set;

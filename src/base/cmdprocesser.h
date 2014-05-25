@@ -1,10 +1,11 @@
 #ifndef WEBSCANNER_BASE_CMDPROCESSER_H
 #define WEBSCANNER_BASE_CMDPROCESSER_H
+#include <cstring>
 class CmdData;
 class CmdProcesser
 {
 public:
-	int process_command(int argc,char **argv, CmdData * res);
+	int process_command(int argc,char **argv, CmdData ** res);
 protected:
 private:
 };
