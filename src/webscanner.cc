@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <signal.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -22,15 +23,23 @@ int WebScanner::work(int argc,  char **argv)
 	FILE *output_pointer=fopen(result->get_output_filename().c_str(), "w");
 	if ( dict_pointer == NULL )
 		return -3;	        // dict file not existed
-	
-	std::cout<<"Starting to scan!"<<std::endl;
+ 	if ( output_pointer == NULL )
+		return -4;          // Fail to create the output file 	
+	printf("Starting to scan!\n");
 	
 	sockaddr_in serv_addr=get_serv_addr(url);
-	std::cout<<serv_addr.sin_addr.s_addr<<std::endl;
-	while (!feof(dict_pointer))
+	in_addr in;
+	memcpy(&in.s_addr,&(serv_addr.sin_addr), sizeof(in));
+	printf("The IP address of the server: %s\n",inet_ntoa(in));
+	printf("Start to scan...\n\n");
+	g_webscanner_interupted=false;
+	signal(SIGINT,work_interupt);
+	while (!feof(dict_pointer) && !g_webscanner_interupted)
 	{
 		string url_add=dict_readline(dict_pointer);
-		std::cout<<url<<" "<<url_add<<std::endl;
+		printf("\33[1A");
+		printf("\33[K");
+		printf("Checking: %s%s\n",url.c_str(),url_add.c_str());
 		int response=send_request(url, url_add,serv_addr);
 		if ( response == 200 || response == 403 )
 			output_writeline(output_pointer,url+url_add,response);
@@ -39,6 +48,14 @@ int WebScanner::work(int argc,  char **argv)
 	delete processer;
 	fclose(dict_pointer);
 	fclose(output_pointer);
+}
+void work_interupt(int signo)
+{
+	printf("Stop scanning?Y/N ");
+	string s;
+	std::cin>>s;
+	if (s[0] == 'y' || s[0] == 'Y')
+		g_webscanner_interupted=true;	
 }
 sockaddr_in WebScanner::get_serv_addr(string url)
 {
@@ -84,7 +101,6 @@ string WebScanner::dict_readline(FILE *fp)
 	fgets(line, URL_LENGTH-1, fp);
 	int ll=strlen(line);
 	line[ll-1]='\0';
-	std::cout<<strlen(line)<<std::endl;
 	return string(line);
 }
 void WebScanner::output_writeline(FILE *fp, string url, int response)
