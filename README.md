@@ -14,11 +14,11 @@ A simple website scanning tool.
 
 ###How to use
 
-1. Scanning a website using the default dictionary
+* Scanning a website using the default dictionary
 ```
 ./webscanner -url [url]
 ```
-2. Scanning a website using a designated dictionary
+* Scanning a website using a designated dictionary
 ```
 ./webscanner -url [url] -dict [filepath of the dictionary]
 ```
