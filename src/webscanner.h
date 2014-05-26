@@ -9,7 +9,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 using std::string;
-bool g_webscanner_interupted;
 void work_interupt(int signo);
 class WebScanner
 {
@@ -22,7 +21,7 @@ private:
 	string dict_readline(FILE *fp);
 	void output_writeline(FILE *fp, string url, int response);
 	sockaddr_in get_serv_addr(string url);
-	
+	void construct_http_header(string url, string url_add, char *request);	
 };
 #endif // end of  WEBSCANNER_WEBSCANNER_H
 

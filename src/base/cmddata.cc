@@ -42,7 +42,7 @@ string CmdData::get_url_string()
 string CmdData::get_dict_string()
 {
 	if (dict_index == -1)
-		return string("/etc/webscanner_dict.list");
+		return string("dict/webscanner_dict.list");
 	return string_set[dict_index];
 }
 

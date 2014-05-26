@@ -10,6 +10,7 @@
 #include "webscanner.h"
 #include "base/cmddata.h"
 #include "base/cmdprocesser.h"
+bool g_webscanner_interupted;
 int WebScanner::work(int argc,  char **argv)
 {
 	CmdProcesser * processer=new CmdProcesser();
@@ -34,6 +35,7 @@ int WebScanner::work(int argc,  char **argv)
 	printf("Start to scan...\n\n");
 	g_webscanner_interupted=false;
 	signal(SIGINT,work_interupt);
+	
 	while (!feof(dict_pointer) && !g_webscanner_interupted)
 	{
 		string url_add=dict_readline(dict_pointer);
@@ -44,6 +46,7 @@ int WebScanner::work(int argc,  char **argv)
 		if ( response == 200 || response == 403 )
 			output_writeline(output_pointer,url+url_add,response);
 	}
+	
 	delete result;
 	delete processer;
 	fclose(dict_pointer);
@@ -55,7 +58,7 @@ void work_interupt(int signo)
 	string s;
 	std::cin>>s;
 	if (s[0] == 'y' || s[0] == 'Y')
-		g_webscanner_interupted=true;	
+		g_webscanner_interupted=true;
 }
 sockaddr_in WebScanner::get_serv_addr(string url)
 {
@@ -67,19 +70,23 @@ sockaddr_in WebScanner::get_serv_addr(string url)
 	tmp.sin_addr=*((in_addr *)host->h_addr);
 	return tmp;
 }
+void WebScanner::construct_http_header(string url, string url_add, char *request)
+{
+	sprintf(request,"GET %s HTTP/1.1\r\n",url_add.c_str());
+	strcat(request,"Accept: */*\r\n");  
+	strcat(request,"Accept-Language: zh-cn\r\n");  
+	strcat(request,"User-Agent: Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1;\r\n");
+	strcat(request,"Host: ");
+	strcat(request,url.c_str());
+	strcat(request,"\r\nConnection: close\r\n\r\n");  
+}
 int WebScanner::send_request(string url,string url_add, sockaddr_in serv_addr)
 {
 	char request[2048];
-	sprintf(request,"GET %s HTTP/1.1\r\n",url_add.c_str());	
-	strcat(request,"Accept: */*\r\n");  
-    strcat(request,"Accept-Language: zh-cn\r\n");  
-    strcat(request,"User-Agent: Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1;\r\n");  
-    strcat(request,"Host: ");  
-    strcat(request,url.c_str());  
-    strcat(request,"\r\nConnection: close\r\n\r\n");  
 	int sockfd;
 	int res;
 	char buff[16];
+	construct_http_header(url,url_add,request);
 	do{
 
 		sockfd=socket(AF_INET,SOCK_STREAM,0);
