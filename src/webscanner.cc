@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <asm/errno.h>
+#include <pthread.h>
 #include <signal.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -11,8 +13,25 @@
 #include "base/cmddata.h"
 #include "base/cmdprocesser.h"
 bool g_webscanner_interupted;
+string g_webscanner_text;
+pthread_mutex_t g_webscanner_mutex_w = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t g_webscanner_mutex_r = PTHREAD_MUTEX_INITIALIZER;
+void* webscanner_readline(void *fp)
+{
+	while (!feof((FILE *)fp))
+	{	
+		pthread_mutex_lock(&g_webscanner_mutex_w);
+		char line[URL_LENGTH];
+		fgets(line, URL_LENGTH-1, (FILE *)fp);
+		int ll=strlen(line);
+		line[ll-1]='\0';
+		g_webscanner_text=string(line);
+		pthread_mutex_unlock(&g_webscanner_mutex_r);
+	}
+}
 int WebScanner::work(int argc,  char **argv)
 {
+	int old=time(NULL);
 	CmdProcesser * processer=new CmdProcesser();
 	CmdData * result=NULL;
 	if ( processer->process_command(argc, argv, &result) != 0 )
@@ -33,16 +52,25 @@ int WebScanner::work(int argc,  char **argv)
 	memcpy(&in.s_addr,&(serv_addr.sin_addr), sizeof(in));
 	printf("The IP address of the server: %s\n",inet_ntoa(in));
 	printf("Start to scan...\n\n");
+
 	g_webscanner_interupted=false;
 	signal(SIGINT,work_interupt);
 	
+	
+	pthread_t thid;
+	pthread_create(&thid,NULL,webscanner_readline,(void *)dict_pointer);
+	pthread_mutex_lock(&g_webscanner_mutex_r);
 	while (!feof(dict_pointer) && !g_webscanner_interupted)
 	{
-		string url_add=dict_readline(dict_pointer);
+		//Loop until the reading thread quit
+		while (pthread_mutex_trylock(&g_webscanner_mutex_r) == EBUSY);
+		string url_add=g_webscanner_text;	
+		pthread_mutex_unlock(&g_webscanner_mutex_w);
 		printf("\33[1A");
 		printf("\33[K");
-		printf("Checking: %s%s\n",url.c_str(),url_add.c_str());
-		int response=send_request(url, url_add,serv_addr);
+		printf("Checking: %s\n",url_add.c_str());
+		
+		int response=send_request(url, url_add ,serv_addr);
 		if ( response == 200 || response == 403 )
 			output_writeline(output_pointer,url+url_add,response);
 	}
@@ -51,6 +79,7 @@ int WebScanner::work(int argc,  char **argv)
 	delete processer;
 	fclose(dict_pointer);
 	fclose(output_pointer);
+	printf("time cost: %d\n",time(NULL)-old);
 }
 void work_interupt(int signo)
 {
@@ -83,13 +112,12 @@ void WebScanner::construct_http_header(string url, string url_add, char *request
 int WebScanner::send_request(string url,string url_add, sockaddr_in serv_addr)
 {
 	char request[2048];
-	int sockfd;
+	int sockfd=socket(AF_INET,SOCK_STREAM,0);
 	int res;
 	char buff[16];
 	construct_http_header(url,url_add,request);
 	do{
 
-		sockfd=socket(AF_INET,SOCK_STREAM,0);
 		if (sockfd < 0)
 			return -1;
 		if (connect(sockfd, (sockaddr *)&serv_addr,sizeof(sockaddr)) == -1)
