@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <asm/errno.h>
+#include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <netdb.h>
@@ -79,7 +79,7 @@ int WebScanner::work(int argc,  char **argv)
 	delete processer;
 	fclose(dict_pointer);
 	fclose(output_pointer);
-	printf("time cost: %d\n",time(NULL)-old);
+	printf("Time cost: %d\n",time(NULL)-old);
 }
 void work_interupt(int signo)
 {
